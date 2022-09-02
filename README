@@ -1,0 +1,19 @@
+Summary
+------------------------------------------------
+
+Test code / schematics for a breadboarded 6502 computer very similar
+to the Ben Eater 6502 computer, but with:
+
+	* a differently apportioned address space/decoding circuitry
+	* a UART + FT232R USB interface
+	* a smaller ROM (8 KiB)
+	* a different SRAM brand (pin compatible, slightly different timing)
+	* 4-bit communication with the LCD module (only 7 pins on VIA port B are required)
+
+Address Space
+-------------------------------------------------
+0000-7FFF RAM
+8000-9FFF VIA (a beefy peripheral interface chip)
+A000-BFFF ACIA (UART)
+C000-DFFF unassigned
+E000-FFFF ROM
