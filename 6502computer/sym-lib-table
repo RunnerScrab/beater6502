@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name "6502")(type "Legacy")(uri "${KIPRJMOD}/6502-kicad-library-master/65xx.lib")(options "")(descr ""))
+  (lib (name "2022-08-31_17-36-00")(type "Legacy")(uri "${KIPRJMOD}/ul_SN74AHCT138N/KiCAD/2022-08-31_17-36-00/2022-08-31_17-36-00.lib")(options "")(descr ""))
+)
