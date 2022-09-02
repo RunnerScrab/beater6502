@@ -17,3 +17,5 @@ Address Space
 A000-BFFF ACIA (UART)
 C000-DFFF unassigned
 E000-FFFF ROM
+
+![Breadboard layout](https://imgur.com/aDyzyA0)
