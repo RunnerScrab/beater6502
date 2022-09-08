@@ -17,9 +17,9 @@ UART_CONTROL_REGISTER = $A003
 	
 	org $E000		; For 8192 byte EEPROM
 message:
-	string "I am (write)"
+	string "Eat my"
 message2:
-	string "protected"
+	string "shorts!"
 	word 0
 	
 reset:
@@ -267,7 +267,15 @@ nmi:
 
 	rti
 irq:
-	lda UART
+
+	ldx #$4F
+	jsr setramaddr
+	jsr delay
+	
+	lda UART	
+	tax
+	jsr writelcddata 
+	
 	jsr delay
 	sta VIA_PORT_A
 	jsr delay
