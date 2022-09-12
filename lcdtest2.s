@@ -47,8 +47,10 @@ inituart:
 
 
 main:
+	jsr ldelay	
 	jsr initlcd
-	jsr delay
+	jsr ldelay
+	jsr ldelay
 	
 	ldx #>message
 	ldy #<message
@@ -247,6 +249,31 @@ writelcd:
 	
 	pla
 	sta $04
+	pla
+	rts
+
+
+ldelay:
+	pha
+	php
+	txa
+	pha
+	ldx #0
+louterloop:
+	lda #0
+ldelayloop:	
+	sec
+	adc #0
+	cmp 255
+	bne ldelayloop
+
+	inx
+	cpx 128
+	bne louterloop
+	
+	pla
+	tax
+	plp
 	pla
 	rts
 	
