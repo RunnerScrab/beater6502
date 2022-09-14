@@ -21,6 +21,9 @@ message:
 message2:
 	string "shorts!"
 	word 0
+
+uartmsg:
+	ascii "Hello there!", $0a, $0d, $00
 	
 reset:
 	ldx #$ff		; Set stack pointer (8 bits) to 0x01FF
@@ -66,12 +69,58 @@ main:
 	sec
 	jsr lcd_putcstr
 	lda #$00
-	cli	
+	cli
+
+	ldx #>uartmsg
+	ldy #<uartmsg
+	jsr uart_putstr
 .end:
 	nop
 	nop
 	nop
 	jmp .end
+	
+uart_putstr:	
+	pha
+	
+	lda $01
+	pha
+	lda $00
+	pha
+	lda $03
+	pha
+	lda $04
+	pha
+	
+	stx $01			; Copy memory address to spot in ZP memory
+	sty $00
+	
+	ldy #$00      ; y holds the cursor offset
+
+.putstrloop:
+	lda ($00), y
+	cmp #$00
+	beq .putstrloopend
+
+	sta UART
+	jsr delay		;This may be necessary because of an ACIA hardware bug
+	
+	iny			; advance cursor position
+	jmp .putstrloop
+
+.putstrloopend:
+	pla
+	sta $04
+	pla
+	sta $03
+	pla
+	sta $00
+	pla
+	sta $01
+	
+	pla
+	rts
+
 	
 lcd_putcstr:
 	;; x contains address hiword
