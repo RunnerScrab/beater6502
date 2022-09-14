@@ -23,6 +23,10 @@ message2:
 	word 0
 	
 reset:
+	ldx #$ff		; Set stack pointer (8 bits) to 0x01FF
+	txs
+
+initvia:
 	lda #$ff		; Set data direction bits for port B to output
 	sta VIA_PORT_B_DIR		; Port B's data direction register address
 	lda #$00		; Write 0 to Port B pins
@@ -63,11 +67,11 @@ main:
 	jsr lcd_putcstr
 	lda #$00
 	cli	
-end:
+.end:
 	nop
 	nop
 	nop
-	jmp end
+	jmp .end
 	
 lcd_putcstr:
 	;; x contains address hiword
@@ -87,16 +91,16 @@ lcd_putcstr:
 	
 	stx $01
 	sty $00
-	bcc line1inity
-line2inity:
+	bcc .line1inity
+.line2inity:
 	ldy #$40
 	sty $03
 	ldy #$00
-	jmp putcstrloop
-line1inity:	
+	jmp .putcstrloop
+.line1inity:	
 	ldy #$00      ; y holds the cursor offset
 	sty $03
-putcstrloop:
+.putcstrloop:
 	tya
 	clc
 	adc $03
@@ -105,16 +109,16 @@ putcstrloop:
 	
 	lda ($00), y
 	cmp #$00
-	beq putcstrloopend
+	beq .putcstrloopend
 
 	tax
 	jsr writelcddata	; place character at cursor
 	
 	iny			; advance cursor position
-	jmp putcstrloop
+	jmp .putcstrloop
 	
 	
-putcstrloopend:
+.putcstrloopend:
 	pla
 	sta $04
 	pla
@@ -259,17 +263,17 @@ ldelay:
 	txa
 	pha
 	ldx #0
-louterloop:
+.louterloop:
 	lda #0
-ldelayloop:	
+.ldelayloop:	
 	sec
 	adc #0
 	cmp 255
-	bne ldelayloop
+	bne .ldelayloop
 
 	inx
 	cpx 128
-	bne louterloop
+	bne .louterloop
 	
 	pla
 	tax
@@ -281,11 +285,11 @@ delay:
 	pha
 	php
 	lda #0
-delayloop:	
+.delayloop:	
 	sec
 	adc #0
 	cmp 255
-	bne delayloop
+	bne .delayloop
 	plp
 	pla
 	rts
@@ -299,14 +303,22 @@ irq:
 	jsr setramaddr
 	jsr delay
 	
-	lda UART	
+	lda UART		; Load a byte from the UART buffer (we know it caused the interrupt)
 	tax
 	jsr writelcddata 
+
+	cmp #$21		; Clear display if a '!' is received by the UART
+	bne .cleanirq
+
+	;; Clear display
+	ldx #$01
+	jsr writelcdcmd
 	
+.cleanirq:
 	jsr delay
 	sta VIA_PORT_A
 	jsr delay
-	lda UART_STATUS_REGISTER ; Loading the status register
+	lda UART_STATUS_REGISTER ; Loading the status register, which clears the UART's interrupt bit
 	rti
 	
 	org $FFFA		; For 8192 byte EEPROM
