@@ -21,8 +21,15 @@ message:
 message2:
 	string "shorts!"
 	word 0
+
+uartmsg:
+	ascii "Hello there!", $0a, $0d, $00
 	
 reset:
+	ldx #$ff		; Set stack pointer (8 bits) to 0x01FF
+	txs
+
+initvia:
 	lda #$ff		; Set data direction bits for port B to output
 	sta VIA_PORT_B_DIR		; Port B's data direction register address
 	lda #$00		; Write 0 to Port B pins
@@ -62,12 +69,58 @@ main:
 	sec
 	jsr lcd_putcstr
 	lda #$00
-	cli	
-end:
+	cli
+
+	ldx #>uartmsg
+	ldy #<uartmsg
+	jsr uart_putstr
+.end:
 	nop
 	nop
 	nop
-	jmp end
+	jmp .end
+	
+uart_putstr:	
+	pha
+	
+	lda $01
+	pha
+	lda $00
+	pha
+	lda $03
+	pha
+	lda $04
+	pha
+	
+	stx $01			; Copy memory address to spot in ZP memory
+	sty $00
+	
+	ldy #$00      ; y holds the cursor offset
+
+.putstrloop:
+	lda ($00), y
+	cmp #$00
+	beq .putstrloopend
+
+	sta UART
+	jsr delay		;This may be necessary because of an ACIA hardware bug
+	
+	iny			; advance cursor position
+	jmp .putstrloop
+
+.putstrloopend:
+	pla
+	sta $04
+	pla
+	sta $03
+	pla
+	sta $00
+	pla
+	sta $01
+	
+	pla
+	rts
+
 	
 lcd_putcstr:
 	;; x contains address hiword
@@ -87,16 +140,16 @@ lcd_putcstr:
 	
 	stx $01
 	sty $00
-	bcc line1inity
-line2inity:
+	bcc .line1inity
+.line2inity:
 	ldy #$40
 	sty $03
 	ldy #$00
-	jmp putcstrloop
-line1inity:	
+	jmp .putcstrloop
+.line1inity:	
 	ldy #$00      ; y holds the cursor offset
 	sty $03
-putcstrloop:
+.putcstrloop:
 	tya
 	clc
 	adc $03
@@ -105,16 +158,16 @@ putcstrloop:
 	
 	lda ($00), y
 	cmp #$00
-	beq putcstrloopend
+	beq .putcstrloopend
 
 	tax
 	jsr writelcddata	; place character at cursor
 	
 	iny			; advance cursor position
-	jmp putcstrloop
+	jmp .putcstrloop
 	
 	
-putcstrloopend:
+.putcstrloopend:
 	pla
 	sta $04
 	pla
@@ -259,17 +312,17 @@ ldelay:
 	txa
 	pha
 	ldx #0
-louterloop:
+.louterloop:
 	lda #0
-ldelayloop:	
+.ldelayloop:	
 	sec
 	adc #0
 	cmp 255
-	bne ldelayloop
+	bne .ldelayloop
 
 	inx
 	cpx 128
-	bne louterloop
+	bne .louterloop
 	
 	pla
 	tax
@@ -281,11 +334,11 @@ delay:
 	pha
 	php
 	lda #0
-delayloop:	
+.delayloop:	
 	sec
 	adc #0
 	cmp 255
-	bne delayloop
+	bne .delayloop
 	plp
 	pla
 	rts
@@ -299,14 +352,22 @@ irq:
 	jsr setramaddr
 	jsr delay
 	
-	lda UART	
+	lda UART		; Load a byte from the UART buffer (we know it caused the interrupt)
 	tax
 	jsr writelcddata 
+
+	cmp #$21		; Clear display if a '!' is received by the UART
+	bne .cleanirq
+
+	;; Clear display
+	ldx #$01
+	jsr writelcdcmd
 	
+.cleanirq:
 	jsr delay
 	sta VIA_PORT_A
 	jsr delay
-	lda UART_STATUS_REGISTER ; Loading the status register
+	lda UART_STATUS_REGISTER ; Loading the status register, which clears the UART's interrupt bit
 	rti
 	
 	org $FFFA		; For 8192 byte EEPROM
