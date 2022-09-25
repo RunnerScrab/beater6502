@@ -103,7 +103,19 @@ uart_putstr:
 	beq .putstrloopend
 
 	sta UART
-	jsr delay		;This may be necessary because of an ACIA hardware bug
+
+	tya
+	pha
+	txa
+	pha
+	php
+	ldy #$01
+	jsr delayms		;This may be necessary because of an ACIA hardware bug
+	plp
+	pla
+	tax
+	pla
+	tay
 	
 	iny			; advance cursor position
 	jmp .putstrloop
@@ -329,7 +341,33 @@ ldelay:
 	plp
 	pla
 	rts
-	
+
+delayms:
+	;; Register Y = # of approximate milliseconds to delay
+	cpy #0
+	beq .exit
+	nop
+	cpy #1
+	bne .delaya
+	jmp .last1
+.delaya:
+	dey
+.delay0
+	ldx #$C6
+.delay1
+	dex
+	bne .delay1
+	nop
+	nop
+	dey
+	bne .delay0
+.last1	
+	ldx #$C3
+.delay2	
+	dex
+	bne .delay2
+.exit
+	rts
 delay:
 	pha
 	php
