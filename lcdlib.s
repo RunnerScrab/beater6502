@@ -16,16 +16,12 @@ lcd_waitbusyflag:
 	lda #$30		; E = 0, Rs = 1, RWB = 1
 	sta VIA_PORT_B		; Write Rs and RWB 1 and hold it there
 	;; delay for tAS here
-	ldy #$01
-	jsr delayms
 .waitloop:
 
 	lda #$70		; E = 1, Rs = 1, RWB = 1
 	sta VIA_PORT_B
 
 	;; delay for tDDR
-	ldy #$01
-	jsr delayms
 	
 	lda VIA_PORT_B		; Read from DB4-7
 	and #$0F		; BF will be in DB7
@@ -36,15 +32,11 @@ lcd_waitbusyflag:
 	sta VIA_PORT_B
 
 	;; Delay for tH
-	ldy #$01
-	jsr delayms
 	
 	lda #$70		; E = 1, Rs = 1, RWB = 1
 	sta VIA_PORT_B
 
 	;; Delay for tDDR
-	ldy #$01
-	jsr delayms
 	
 	lda VIA_PORT_B		; Read from DB4-7 (we shouldn't need this nibble)
 	
@@ -53,9 +45,6 @@ lcd_waitbusyflag:
 	sta VIA_PORT_B
 
 	;; Delay for tH
-	ldy #$01
-	jsr delayms
-	
 
 	txa			; Move Busy Flag back into a
 	beq .waitloop		; Loop until BF == 0
@@ -237,16 +226,10 @@ writelcd:
 	sta VIA_PORT_B
 
 
-	ldy #$01
-	jsr delayms
-
 	ora #$40			; or enable bit and RS bit together
 	sta $04			; $04 contains E = 1, Rs = X, RWB = 0
 	sta VIA_PORT_B
 
-	ldy #$01
-	jsr delayms
-	
 	;; Send first nibble
 	txa
 	lsr
@@ -257,22 +240,13 @@ writelcd:
 	sta VIA_PORT_B
 	sta $05			; $05 contains E = 1, Rs = X, RWB = 0, and high nibble
 	
-	ldy #$01
-	jsr delayms
-
 	lda #$40
 	eor $05		; Load high nibble, Rs = X, RWB = 0, but turn E off
 	sta VIA_PORT_B
-
-	ldy #$01
-	jsr delayms
 	
 	lda $04			; Load E = 1, Rs = X, RWB = 0, clear nibble
 	sta VIA_PORT_B
 
-	ldy #$01
-	jsr delayms
-	
 	;;  Send 2nd nibble
 	txa
 	and #$0f		; take only lower nibble for sending
@@ -280,17 +254,10 @@ writelcd:
 	sta VIA_PORT_B
 	sta $05			; $05 now contains E = 1, Rs = X, RWB = 0, and low nibble
 	
-	ldy #$01
-	jsr delayms
-
 	lda #$40
 	eor $05			; Turn E off but keep low nibble, Rs = X, RWB = 0
 	sta VIA_PORT_B
 
-	ldy #$01
-	jsr delayms
-
-	
 	pla
 	sta $05
 	pla
