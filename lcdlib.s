@@ -16,8 +16,6 @@ lcd_waitbusyflag:
 	lda #$30		; E = 0, Rs = 1, RWB = 1
 	sta VIA_PORT_B		; Write Rs and RWB 1 and hold it there
 	;; delay for tAS here
-	ldy #$01
-	jsr delayms
 .waitloop:
 
 	lda #$70		; E = 1, Rs = 1, RWB = 1
