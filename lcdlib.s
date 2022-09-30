@@ -1,4 +1,63 @@
+lcd_waitbusyflag:
+	;; LCD's RWB will need to be write, while the bit
+	;; we will read the busy flag on will need to be read
 
+	pha
+	txa
+	pha
+	tya
+	pha
+	php
+	lda $03
+	pha
+
+	
+	lda #$F0  		; E, Rs, RWB to output, all else input
+	sta VIA_PORT_B_DIR	; Port B's data direction register address
+
+	lda #$30		; E = 0
+	sta VIA_PORT_B		; Write Rs and RWB 1 and hold it there
+	;; delay here?	
+.waitloop:
+
+	lda #$70		; E = 1 Write Enable w/ Rs and RWB
+	sta VIA_PORT_B
+
+
+	lda VIA_PORT_B		; Read from DB4-7
+	and #$0F		; BF will be in DB7
+	tax			; move Busy Flag to X
+	
+	lda #$30		; Turn off E while keeping Rs & RWB on
+	sta VIA_PORT_B
+
+
+	lda #$70		; Turn on E, Rs, and RWB
+	sta VIA_PORT_B
+
+	
+	lda VIA_PORT_B		; Read the other nibble (which we don't need)
+	
+	lda #$30		; Turn off E while keeping Rs & RWB on
+	sta VIA_PORT_B
+
+	txa			; Move Busy Flag back into a
+	beq .waitloop		; Loop until BF == 0
+
+.exit:	
+	;; Restore direction bits and registers
+	lda #$ff		; Set data direction bits for port B to output
+	sta VIA_PORT_B_DIR	; Port B's data direction register address
+
+	pla
+	sta $03
+	plp
+	pla
+	tay
+	pla
+	tax
+	pla	
+	rts
 
 lcd_putcstr:
 	;; x contains address hiword
@@ -28,6 +87,9 @@ lcd_putcstr:
 	ldy #$00      ; y holds the cursor offset
 	sty $03
 .putcstrloop:
+
+	jsr lcd_waitbusyflag	; wait for busy flag
+	
 	tya
 	clc
 	adc $03
@@ -37,7 +99,7 @@ lcd_putcstr:
 	lda ($00), y
 	cmp #$00
 	beq .putcstrloopend
-
+	
 	tax
 	jsr writelcddata	; place character at cursor
 	
@@ -68,24 +130,36 @@ initlcd:
 	;; HOME LCD instruction	(not sure if this is needed)
 	ldx #$02		
 	jsr writelcdcmd
-	
+
+	jsr delay
 	;; FUNCSET instruction, setting 4-bit mode, N=1, F=1 and
 	;; two don't cares in bits 0 and 1
 	ldx #$2f		
 	jsr writelcdcmd
+
+	ldy #$0A
+	jsr delayms
 	
+	jsr lcd_waitbusyflag
 	;; DISPON with entire display on flag = 1, cursor flag = 1
 	;; and blinking cursor flag = 1
 	ldx #$0f		
 	jsr writelcdcmd
+
+	jsr lcd_waitbusyflag
 	
 	;; Clear display
 	ldx #$01
 	jsr writelcdcmd
+
+
+	jsr lcd_waitbusyflag
 	
 	;; Set DDRAM address offset to 0
 	ldx #$80
 	jsr writelcdcmd
+
+	jsr lcd_waitbusyflag
 
 	plp
 	pla
@@ -103,7 +177,6 @@ setramaddr:
 	tax
 
 	jsr writelcdcmd
-	jsr delay
 	pla
 	
 
@@ -138,16 +211,18 @@ writelcd:
 	pha
 	lda $04
 	pha
-
+	
 	tya			; Shift y's 1 or 0 to the RS bit (pb5)
 	asl			; RS is 1 for data, 0 for command
 	asl
 	asl
 	asl
 	asl
+	sta VIA_PORT_B
+
 	ora #$40			; or enable bit and RS bit together
 	sta $04			; then store result at zp 0
-	
+
 	lda #%01000000		; E = 1
 	ora $04
 	sta VIA_PORT_B
@@ -160,10 +235,10 @@ writelcd:
 	lsr
 	ora $04
 	sta VIA_PORT_B
-	
 
 	lda #%00000000		; E = 0
 	sta VIA_PORT_B
+	
 	lda #%01000000		; E = 1
 	sta VIA_PORT_B
 	
@@ -172,11 +247,9 @@ writelcd:
 	and #$0f		; take only lower nibble for sending
 	ora $04			; or E and RS onto opcode/data
 	sta VIA_PORT_B
-	
+
 	lda #%00000000		; E = 0
 	sta VIA_PORT_B
-
-	jsr delay
 	
 	pla
 	sta $04

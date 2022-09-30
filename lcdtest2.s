@@ -54,7 +54,8 @@ inituart:
 
 
 main:
-	jsr ldelay	
+	ldy #$05
+	jsr delayms
 	jsr initlcd
 	jsr ldelay
 	jsr ldelay

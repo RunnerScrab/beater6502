@@ -1,5 +1,3 @@
-
-	
 HOME = $02
 CLEAR = $01
 ENTRY = $06
@@ -21,13 +19,13 @@ UART_CONTROL_REGISTER = $A003
 	
 	include "lcdlib.s"	; Include LCD routines
 message:
-	string "6502 BEATER"
+	string "I wait for"
 message2:
-	string "32 KiB SRAM"
+	string "the busy flag!"
 	word 0
 
 uartmsg:
-	ascii "Hello there!", $0a, $0d, $00
+	ascii "Busy flag waiting", $0a, $0d, $00
 	
 reset:
 	ldx #$ff		; Set stack pointer (8 bits) to 0x01FF
@@ -58,7 +56,8 @@ inituart:
 
 
 main:
-	jsr ldelay	
+	ldy #$FF
+	jsr delayms
 	jsr initlcd
 	jsr ldelay
 	jsr ldelay
@@ -132,16 +131,6 @@ uart_putstr:
 	pla
 	rts
 
-lcd_waitbusy:
-	;; LCD's RWB will need to be write, while the bit
-	;; we will read the busy flag on will need to be read
-	
-	lda #$ff		; Set data direction bits for port B to output
-	sta VIA_PORT_B_DIR		; Port B's data direction register address
-	lda #$00		; Write 0 to Port B pins
-	sta VIA_PORT_B
-	
-	
 ldelay:
 	pha
 	php
@@ -167,7 +156,13 @@ ldelay:
 	rts
 
 delayms:
-	;; Register Y = # of approximate milliseconds to delay
+	;; Register Y = # of approximate milliseconds to delay	
+	pha
+	txa
+	pha
+	php
+	
+
 	cpy #0
 	beq .exit
 	nop
@@ -191,6 +186,11 @@ delayms:
 	dex
 	bne .delay2
 .exit
+
+	plp
+	pla
+	tax
+	pla
 	rts
 delay:
 	pha
@@ -212,10 +212,10 @@ nmi:
 	rti
 irq:
 
+	jsr lcd_waitbusyflag
 	ldx #$4F
 	jsr setramaddr
-	jsr delay
-	
+
 	lda UART		; Load a byte from the UART buffer (we know it caused the interrupt)
 	tax
 	jsr writelcddata 
@@ -223,6 +223,8 @@ irq:
 	cmp #$21		; Clear display if a '!' is received by the UART
 	bne .cleanirq
 
+	jsr lcd_waitbusyflag
+	
 	;; Clear display
 	ldx #$01
 	jsr writelcdcmd
