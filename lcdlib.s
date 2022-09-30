@@ -8,38 +8,54 @@ lcd_waitbusyflag:
 	tya
 	pha
 	php
-	lda $03
-	pha
 
 	
 	lda #$F0  		; E, Rs, RWB to output, all else input
 	sta VIA_PORT_B_DIR	; Port B's data direction register address
 
-	lda #$30		; E = 0
+	lda #$30		; E = 0, Rs = 1, RWB = 1
 	sta VIA_PORT_B		; Write Rs and RWB 1 and hold it there
-	;; delay here?	
+	;; delay for tAS here
+	ldy #$01
+	jsr delayms
 .waitloop:
 
-	lda #$70		; E = 1 Write Enable w/ Rs and RWB
+	lda #$70		; E = 1, Rs = 1, RWB = 1
 	sta VIA_PORT_B
 
-
+	;; delay for tDDR
+	ldy #$01
+	jsr delayms
+	
 	lda VIA_PORT_B		; Read from DB4-7
 	and #$0F		; BF will be in DB7
 	tax			; move Busy Flag to X
-	
-	lda #$30		; Turn off E while keeping Rs & RWB on
-	sta VIA_PORT_B
-
-
-	lda #$70		; Turn on E, Rs, and RWB
-	sta VIA_PORT_B
 
 	
-	lda VIA_PORT_B		; Read the other nibble (which we don't need)
-	
-	lda #$30		; Turn off E while keeping Rs & RWB on
+	lda #$30		; E = 0, Rs = 1, RWB = 1
 	sta VIA_PORT_B
+
+	;; Delay for tH
+	ldy #$01
+	jsr delayms
+	
+	lda #$70		; E = 1, Rs = 1, RWB = 1
+	sta VIA_PORT_B
+
+	;; Delay for tDDR
+	ldy #$01
+	jsr delayms
+	
+	lda VIA_PORT_B		; Read from DB4-7 (we shouldn't need this nibble)
+	
+		
+	lda #$30		; E = 0, Rs = 0, RWB = 0
+	sta VIA_PORT_B
+
+	;; Delay for tH
+	ldy #$01
+	jsr delayms
+	
 
 	txa			; Move Busy Flag back into a
 	beq .waitloop		; Loop until BF == 0
@@ -49,8 +65,6 @@ lcd_waitbusyflag:
 	lda #$ff		; Set data direction bits for port B to output
 	sta VIA_PORT_B_DIR	; Port B's data direction register address
 
-	pla
-	sta $03
 	plp
 	pla
 	tay
@@ -211,6 +225,8 @@ writelcd:
 	pha
 	lda $04
 	pha
+	lda $05
+	pha
 	
 	tya			; Shift y's 1 or 0 to the RS bit (pb5)
 	asl			; RS is 1 for data, 0 for command
@@ -220,13 +236,17 @@ writelcd:
 	asl
 	sta VIA_PORT_B
 
-	ora #$40			; or enable bit and RS bit together
-	sta $04			; then store result at zp 0
 
-	lda #%01000000		; E = 1
-	ora $04
+	ldy #$01
+	jsr delayms
+
+	ora #$40			; or enable bit and RS bit together
+	sta $04			; $04 contains E = 1, Rs = X, RWB = 0
 	sta VIA_PORT_B
 
+	ldy #$01
+	jsr delayms
+	
 	;; Send first nibble
 	txa
 	lsr
@@ -235,22 +255,44 @@ writelcd:
 	lsr
 	ora $04
 	sta VIA_PORT_B
-
-	lda #%00000000		; E = 0
-	sta VIA_PORT_B
+	sta $05			; $05 contains E = 1, Rs = X, RWB = 0, and high nibble
 	
-	lda #%01000000		; E = 1
+	ldy #$01
+	jsr delayms
+
+	lda #$40
+	eor $05		; Load high nibble, Rs = X, RWB = 0, but turn E off
 	sta VIA_PORT_B
+
+	ldy #$01
+	jsr delayms
+	
+	lda $04			; Load E = 1, Rs = X, RWB = 0, clear nibble
+	sta VIA_PORT_B
+
+	ldy #$01
+	jsr delayms
 	
 	;;  Send 2nd nibble
 	txa
 	and #$0f		; take only lower nibble for sending
 	ora $04			; or E and RS onto opcode/data
 	sta VIA_PORT_B
-
-	lda #%00000000		; E = 0
-	sta VIA_PORT_B
+	sta $05			; $05 now contains E = 1, Rs = X, RWB = 0, and low nibble
 	
+	ldy #$01
+	jsr delayms
+
+	lda #$40
+	eor $05			; Turn E off but keep low nibble, Rs = X, RWB = 0
+	sta VIA_PORT_B
+
+	ldy #$01
+	jsr delayms
+
+	
+	pla
+	sta $05
 	pla
 	sta $04
 	pla
