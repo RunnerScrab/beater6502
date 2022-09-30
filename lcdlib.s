@@ -8,38 +8,54 @@ lcd_waitbusyflag:
 	tya
 	pha
 	php
-	lda $03
-	pha
 
 	
 	lda #$F0  		; E, Rs, RWB to output, all else input
 	sta VIA_PORT_B_DIR	; Port B's data direction register address
 
-	lda #$30		; E = 0
+	lda #$30		; E = 0, Rs = 1, RWB = 1
 	sta VIA_PORT_B		; Write Rs and RWB 1 and hold it there
-	;; delay here?	
+	;; delay for tAS here
+	ldy #$01
+	jsr delayms
 .waitloop:
 
-	lda #$70		; E = 1 Write Enable w/ Rs and RWB
+	lda #$70		; E = 1, Rs = 1, RWB = 1
 	sta VIA_PORT_B
 
-
+	;; delay for tDDR
+	ldy #$01
+	jsr delayms
+	
 	lda VIA_PORT_B		; Read from DB4-7
 	and #$0F		; BF will be in DB7
 	tax			; move Busy Flag to X
-	
-	lda #$30		; Turn off E while keeping Rs & RWB on
-	sta VIA_PORT_B
-
-
-	lda #$70		; Turn on E, Rs, and RWB
-	sta VIA_PORT_B
 
 	
-	lda VIA_PORT_B		; Read the other nibble (which we don't need)
-	
-	lda #$30		; Turn off E while keeping Rs & RWB on
+	lda #$30		; E = 0, Rs = 1, RWB = 1
 	sta VIA_PORT_B
+
+	;; Delay for tH
+	ldy #$01
+	jsr delayms
+	
+	lda #$70		; E = 1, Rs = 1, RWB = 1
+	sta VIA_PORT_B
+
+	;; Delay for tDDR
+	ldy #$01
+	jsr delayms
+	
+	lda VIA_PORT_B		; Read from DB4-7 (we shouldn't need this nibble)
+	
+		
+	lda #$30		; E = 0, Rs = 0, RWB = 0
+	sta VIA_PORT_B
+
+	;; Delay for tH
+	ldy #$01
+	jsr delayms
+	
 
 	txa			; Move Busy Flag back into a
 	beq .waitloop		; Loop until BF == 0
@@ -49,8 +65,6 @@ lcd_waitbusyflag:
 	lda #$ff		; Set data direction bits for port B to output
 	sta VIA_PORT_B_DIR	; Port B's data direction register address
 
-	pla
-	sta $03
 	plp
 	pla
 	tay
